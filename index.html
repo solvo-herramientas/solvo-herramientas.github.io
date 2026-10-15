@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herramientas SOLVO · Fabricación aditiva</title>
+<meta name="description" content="Herramientas gratuitas de SOLVO Fabricaciones Digitales para diseño y fabricación aditiva.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --amarillo:#FEBF2C; --tinta:#222; --gris:#6b7280; --fondo:#f3f4f6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Poppins', system-ui, sans-serif; background: var(--fondo); color: var(--tinta); }
+  header { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 14px 20px; }
+  header .in, main, footer .in { max-width: 960px; margin: 0 auto; }
+  header .in { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  header img { height: 36px; display: block; }
+  header a.web { color: var(--tinta); text-decoration: none; font-weight: 500; font-size: 14px; }
+  main { padding: 48px 20px; }
+  .eyebrow { color: #b8860b; font-weight: 600; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin: 0 0 6px; }
+  h1 { font-size: clamp(28px, 5vw, 40px); margin: 0 0 12px; line-height: 1.15; }
+  .lead { color: var(--gris); max-width: 60ch; margin: 0 0 36px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+  .tool { background: #fff; border-radius: 12px; padding: 22px; border-top: 4px solid var(--amarillo); box-shadow: 0 4px 14px rgba(0,0,0,.06); text-decoration: none; color: inherit; display: grid; gap: 8px; transition: transform .2s; }
+  .tool:hover { transform: translateY(-3px); }
+  .tool h2 { margin: 0; font-size: 20px; }
+  .tool p { margin: 0; color: var(--gris); font-size: 14px; line-height: 1.5; }
+  .tool span { color: #b8860b; font-weight: 600; font-size: 14px; }
+  .tool.soon { border-top-color: #d1d5db; opacity: .7; }
+  footer { padding: 24px 20px 40px; color: var(--gris); font-size: 13px; }
+  footer .in { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; border-top: 1px solid #e5e7eb; padding-top: 18px; }
+  footer a { color: var(--gris); }
+  a:focus-visible { outline: 2px solid var(--amarillo); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { .tool { transition: none; } }
+</style>
+</head>
+<body>
+<header><div class="in">
+  <a href="https://solvo.ar" aria-label="Ir a solvo.ar"><img src="logo-solvo.png" alt="SOLVO Fabricaciones Digitales"></a>
+  <a class="web" href="https://solvo.ar">solvo.ar ↗</a>
+</div></header>
+<main>
+  <p class="eyebrow">Herramientas gratuitas</p>
+  <h1>Herramientas para diseñar y fabricar mejor</h1>
+  <p class="lead">Aplicaciones gratuitas que desarrollamos a partir de nuestro trabajo diario en ingeniería y fabricación aditiva. Funcionan en el navegador, sin registro.</p>
+  <div class="tools">
+    <a class="tool" href="selector-filamentos/">
+      <h2>Selector de Filamentos</h2>
+      <p>Elegí el material de impresión 3D según temperatura, sol, químicos, esfuerzos y equipo. Muestra qué cumple, qué casi cumple y cómo fabricarla.</p>
+      <span>Abrir herramienta →</span>
+    </a>
+    <div class="tool soon">
+      <h2>Próximamente</h2>
+      <p>Más herramientas en desarrollo.</p>
+    </div>
+  </div>
+</main>
+<footer><div class="in">
+  <span>© 2026 SOLVO Fabricaciones Digitales · San Juan, Argentina</span>
+  <span><a href="https://cafecito.app/solvo">☕ Invitanos un cafecito</a></span>
+</div></footer>
+</body>
+</html>

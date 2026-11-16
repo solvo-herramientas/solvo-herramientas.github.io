@@ -41,6 +41,7 @@
   .chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); opacity: .35; }
   .chip[aria-pressed="true"] { border-color: var(--c); color: var(--tinta); background: color-mix(in srgb, var(--c) 10%, #fff); }
   .chip[aria-pressed="true"] .dot { opacity: 1; }
+  .hint { font-size: 13px; color: var(--gris); }
   .suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--gris); }
   .suggest button { font: inherit; font-size: 13px; background: var(--fondo); border: 0; border-radius: 6px; padding: 3px 9px; cursor: pointer; color: var(--tinta); }
   .suggest button:hover { background: #fdf0cf; }
@@ -144,6 +145,7 @@
       <button class="btn" type="submit">Buscar</button>
     </div>
     <div class="sources" id="sources"><span class="row-label">Buscar en</span></div>
+    <div class="sources" id="sources-extra" hidden><span class="row-label">Extra</span><span class="hint">Piezas CAD, no siempre para imprimir:</span></div>
     <div class="suggest" id="suggest">Probá:</div>
   </form>
 
@@ -222,6 +224,8 @@ const SOURCES = [
   { id: 'cults',         name: 'Cults3D',       color: '#8E44AD', searchUrl: q => `https://cults3d.com/es/b%C3%BAsqueda?q=${q}` },
   { id: 'myminifactory', name: 'MyMiniFactory', color: '#1F2A44', searchUrl: q => `https://www.myminifactory.com/search/?query=${q}` },
   { id: 'thangs',        name: 'Thangs',        color: '#D6336C', searchUrl: q => `https://thangs.com/search/${q}?scope=all` },
+  // Opcional: piezas CAD de ingeniería, no siempre pensadas para imprimir
+  { id: 'grabcad',       name: 'GrabCAD',       color: '#3F7FBF', optional: true, searchUrl: q => `https://grabcad.com/library?query=${q}` },
 ].map(s => ({ ...s, search: (q, page) => demoSearch(s, q, page) }));
 
 const SUGGESTIONS = ['soporte celular', 'engranaje', 'maceta', 'organizador', 'clip cable', 'llavero'];
@@ -274,7 +278,7 @@ function placeholderThumb(it, color) {
 
 /* ---------- Estado y UI ---------- */
 const $ = s => document.querySelector(s);
-const state = { q: '', page: 1, active: new Set(load('sources', SOURCES.map(s => s.id))), results: [], status: {}, view: load('view', 'grid') };
+const state = { q: '', page: 1, active: new Set(load('sources', SOURCES.filter(s => !s.optional).map(s => s.id))), results: [], status: {}, view: load('view', 'grid') };
 function load(k, d) { try { const v = localStorage.getItem('b3d.' + k); return v ? JSON.parse(v) : d; } catch { return d; } }
 function save(k, v) { try { localStorage.setItem('b3d.' + k, JSON.stringify(v)); } catch {} }
 const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' k' : String(n);
@@ -286,6 +290,7 @@ SOURCES.forEach(s => {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'chip'; b.style.setProperty('--c', s.color);
   b.innerHTML = `<span class="dot"></span>${s.name}`;
+  if (s.optional) { b.title = 'Modelos CAD de ingeniería; no todos están pensados para imprimir'; $('#sources-extra').hidden = false; }
   b.setAttribute('aria-pressed', state.active.has(s.id));
   b.onclick = () => {
     state.active.has(s.id) ? state.active.delete(s.id) : state.active.add(s.id);
@@ -294,7 +299,7 @@ SOURCES.forEach(s => {
     save('sources', [...state.active]);
     if (state.q) run(state.q);
   };
-  $('#sources').append(b);
+  (s.optional ? $('#sources-extra') : $('#sources')).append(b);
 });
 SUGGESTIONS.forEach(t => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => { $('#q').value = t; run(t); }; $('#suggest').append(b); });
 

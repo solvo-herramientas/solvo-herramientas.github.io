@@ -222,7 +222,6 @@ const SOURCES = [
   { id: 'thingiverse',   name: 'Thingiverse',   color: '#248BFB', searchUrl: q => `https://www.thingiverse.com/search?q=${q}&type=things` },
   { id: 'makerworld',    name: 'MakerWorld',    color: '#00AE42', searchUrl: q => `https://makerworld.com/es/search/models?keyword=${q}` },
   { id: 'cults',         name: 'Cults3D',       color: '#8E44AD', searchUrl: q => `https://cults3d.com/es/b%C3%BAsqueda?q=${q}` },
-  { id: 'myminifactory', name: 'MyMiniFactory', color: '#1F2A44', searchUrl: q => `https://www.myminifactory.com/search/?query=${q}` },
   { id: 'thangs',        name: 'Thangs',        color: '#D6336C', searchUrl: q => `https://thangs.com/search/${q}?scope=all` },
   // Opcional: piezas CAD de ingeniería, no siempre pensadas para imprimir
   { id: 'grabcad',       name: 'GrabCAD',       color: '#3F7FBF', optional: true, searchUrl: q => `https://grabcad.com/library?query=${q}` },
@@ -242,7 +241,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 function demoSearch(src, q, page) {
   const r = rng(src.id + '|' + q.toLowerCase() + '|' + page);
   const n = page > 2 ? 0 : Math.floor(r() * 3) + PAGE_SIZE - 2;
-  const paidSite = ['cults', 'myminifactory'].includes(src.id);
+  const paidSite = ['cults'].includes(src.id);
   const items = Array.from({ length: n }, (_, i) => {
     const paid = r() < (paidSite ? .5 : .08);
     return {

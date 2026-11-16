@@ -1,0 +1,12 @@
+name = "buscador-3d-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Sitios que pueden usar este servidor (separados por coma)
+ALLOWED_ORIGINS = "https://solvo-herramientas.github.io,http://localhost:8765"
+
+# Claves secretas: NO van acá. Se cargan con:
+#   npx wrangler secret put THINGIVERSE_TOKEN
+#   npx wrangler secret put CULTS_USER
+#   npx wrangler secret put CULTS_KEY

@@ -72,6 +72,12 @@
   .view button[aria-pressed="true"] { border-color: var(--amarillo); color: var(--tinta); background: #fff8e6; }
   .filters-toggle { display: none; }
 
+  .also { background: #fff; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.05); padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--gris); }
+  .also #also-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .also a { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--tinta); text-decoration: none; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 8%, #fff); }
+  .also a:hover { background: color-mix(in srgb, var(--c) 18%, #fff); }
+  .also a i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+  .fine { font-size: 12px; color: var(--gris); margin: 0; line-height: 1.5; }
   .notice { font-size: 13px; background: #fff8e6; border: 1px solid #f5dfa3; color: #6b4e00; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
@@ -152,7 +158,7 @@
   <div class="results-wrap" id="results-wrap" hidden>
     <aside id="aside">
       <div class="panel">
-        <h3>Estado por sitio</h3>
+        <h3>Resultados por sitio</h3>
         <div class="status" id="status"></div>
       </div>
       <div class="panel">
@@ -175,6 +181,7 @@
         <h3>Abrir en cada sitio</h3>
         <div id="ext"></div>
       </div>
+      <p class="fine">Los resultados pertenecen a cada sitio y a sus autores. Las descargas se hacen en la página original.</p>
     </aside>
 
     <section aria-live="polite">
@@ -186,7 +193,8 @@
           <button type="button" data-view="list" aria-pressed="false" title="Lista"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="3" rx="1"/><rect x="1" y="7" width="14" height="3" rx="1"/><rect x="1" y="12" width="14" height="3" rx="1"/></svg></button>
         </div>
       </div>
-      <p class="notice"><b>Prototipo de interfaz.</b> Los resultados son datos de ejemplo generados para evaluar el diseño. Los enlaces “Abrir en cada sitio” sí funcionan y llevan a la búsqueda real.</p>
+      <div class="also" id="also" hidden><span>Seguí buscando en</span><div id="also-links"></div></div>
+      <p class="notice" id="demo-notice" hidden><b>Modo demostración.</b> Los resultados de Thingiverse y Cults3D son datos de ejemplo hasta conectar el servidor. Los botones “Seguí buscando en” sí llevan a la búsqueda real.</p>
       <div class="grid" id="grid"></div>
       <div class="more" id="more" hidden><button class="btn ghost" type="button" id="more-btn">Cargar más resultados</button></div>
     </section>
@@ -217,15 +225,30 @@
    Resultado = { id, title, author, url, thumb?, likes, downloads,
                  price (0 = gratis), currency, date, tags[] }
    ========================================================= */
+/* Dirección del servidor intermedio (Cloudflare Worker, carpeta /worker).
+   Vacía = modo demostración con datos de ejemplo. */
+const API_URL = '';
+
+/* api:  resultados reales dentro de la página (vía el Worker, con clave oficial)
+   link: sin acceso oficial; se ofrece un botón que abre la búsqueda en el sitio */
 const SOURCES = [
-  { id: 'printables',    name: 'Printables',    color: '#FA6831', searchUrl: q => `https://www.printables.com/search/models?q=${q}` },
-  { id: 'thingiverse',   name: 'Thingiverse',   color: '#248BFB', searchUrl: q => `https://www.thingiverse.com/search?q=${q}&type=things` },
-  { id: 'makerworld',    name: 'MakerWorld',    color: '#00AE42', searchUrl: q => `https://makerworld.com/es/search/models?keyword=${q}` },
-  { id: 'cults',         name: 'Cults3D',       color: '#8E44AD', searchUrl: q => `https://cults3d.com/es/b%C3%BAsqueda?q=${q}` },
-  { id: 'thangs',        name: 'Thangs',        color: '#D6336C', searchUrl: q => `https://thangs.com/search/${q}?scope=all` },
+  { id: 'makerworld',  name: 'MakerWorld',  color: '#00AE42', mode: 'link', searchUrl: q => `https://makerworld.com/es/search/models?keyword=${q}` },
+  { id: 'printables',  name: 'Printables',  color: '#FA6831', mode: 'link', searchUrl: q => `https://www.printables.com/search/models?q=${q}` },
+  { id: 'thingiverse', name: 'Thingiverse', color: '#248BFB', mode: 'api',  searchUrl: q => `https://www.thingiverse.com/search?q=${q}&type=things` },
+  { id: 'cults',       name: 'Cults3D',     color: '#8E44AD', mode: 'api',  searchUrl: q => `https://cults3d.com/es/b%C3%BAsqueda?q=${q}` },
+  { id: 'thangs',      name: 'Thangs',      color: '#D6336C', mode: 'link', searchUrl: q => `https://thangs.com/search/${q}?scope=all` },
   // Opcional: piezas CAD de ingeniería, no siempre pensadas para imprimir
-  { id: 'grabcad',       name: 'GrabCAD',       color: '#3F7FBF', optional: true, searchUrl: q => `https://grabcad.com/library?query=${q}` },
-].map(s => ({ ...s, search: (q, page) => demoSearch(s, q, page) }));
+  { id: 'grabcad',     name: 'GrabCAD',     color: '#3F7FBF', mode: 'link', optional: true, searchUrl: q => `https://grabcad.com/library?query=${q}` },
+].map(s => ({ ...s, search: (q, page) => API_URL ? apiSearch(s, q, page) : demoSearch(s, q, page) }));
+
+async function apiSearch(src, q, page) {
+  const r = await fetch(`${API_URL}/search?source=${src.id}&q=${encodeURIComponent(q)}&page=${page}`);
+  if (!r.ok) throw new Error(r.status === 429 ? 'Demasiadas búsquedas' : 'No respondió');
+  const data = await r.json();
+  const items = data.items.map((it, i) => ({ ...it, relevance: -page - i / 100, hue: (i * 47) % 360, shape: i % 3 }));
+  items.hasMore = data.hasMore;
+  return items;
+}
 
 const SUGGESTIONS = ['soporte celular', 'engranaje', 'maceta', 'organizador', 'clip cable', 'llavero'];
 const PAGE_SIZE = 6;
@@ -241,7 +264,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 function demoSearch(src, q, page) {
   const r = rng(src.id + '|' + q.toLowerCase() + '|' + page);
   const n = page > 2 ? 0 : Math.floor(r() * 3) + PAGE_SIZE - 2;
-  const paidSite = ['cults'].includes(src.id);
+  const paidSite = src.id === 'cults';
   const items = Array.from({ length: n }, (_, i) => {
     const paid = r() < (paidSite ? .5 : .08);
     return {
@@ -312,26 +335,30 @@ $('#more-btn').onclick = () => fetchPage(state.page + 1);
 let token = 0;
 function run(q) {
   state.q = q; state.results = []; state.page = 0;
-  const u = new URL(location); u.searchParams.set('q', q); history.replaceState(null, '', u);
+  try { const u = new URL(location); u.searchParams.set('q', q); history.replaceState(null, '', u); } catch {}
   $('#welcome').hidden = true; $('#results-wrap').hidden = false;
   $('#ext').innerHTML = SOURCES.filter(s => state.active.has(s.id))
     .map(s => `<a href="${s.searchUrl(encodeURIComponent(q))}" target="_blank" rel="noopener">${s.name}<span>↗</span></a>`).join('');
+  const links = SOURCES.filter(s => s.mode === 'link' && state.active.has(s.id));
+  $('#also').hidden = !links.length;
+  $('#also-links').innerHTML = links.map(s => `<a href="${s.searchUrl(encodeURIComponent(q))}" target="_blank" rel="noopener" style="--c:${s.color}"><i></i>${s.name} ↗</a>`).join('');
+  $('#demo-notice').hidden = !!API_URL;
   fetchPage(1, ++token);
 }
 
 function fetchPage(page, t = token) {
   state.page = page;
-  const srcs = SOURCES.filter(s => state.active.has(s.id));
+  const srcs = SOURCES.filter(s => s.mode === 'api' && state.active.has(s.id));
   srcs.forEach(s => state.status[s.id] = { loading: true, n: state.status[s.id]?.n && page > 1 ? state.status[s.id].n : 0 });
   render();
   srcs.forEach(s => s.search(state.q, page)
-    .then(items => { if (t !== token) return; state.results.push(...items.map(it => ({ ...it, source: s.id }))); state.status[s.id] = { n: (page > 1 ? state.status[s.id].n : 0) + items.length, done: items.length < PAGE_SIZE - 2 }; })
+    .then(items => { if (t !== token) return; state.results.push(...items.map(it => ({ ...it, source: s.id }))); state.status[s.id] = { n: (page > 1 ? state.status[s.id].n : 0) + items.length, done: items.hasMore != null ? !items.hasMore : items.length < PAGE_SIZE - 2 }; })
     .catch(err => { if (t !== token) return; state.status[s.id] = { error: err.message }; })
     .finally(() => t === token && render()));
 }
 
 function render() {
-  const srcs = SOURCES.filter(s => state.active.has(s.id));
+  const srcs = SOURCES.filter(s => s.mode === 'api' && state.active.has(s.id));
   // Estado por sitio
   $('#status').innerHTML = srcs.map(s => {
     const st = state.status[s.id] || {};
@@ -342,7 +369,7 @@ function render() {
   // Filtrar y ordenar
   const price = document.querySelector('input[name=price]:checked').value;
   let list = state.results.filter(r => state.active.has(r.source) && (price === 'all' || (price === 'free' ? !r.price : r.price > 0)));
-  const sorters = { rel: (a, b) => b.relevance - a.relevance, likes: (a, b) => b.likes - a.likes, dl: (a, b) => b.downloads - a.downloads, new: (a, b) => b.date - a.date, price: (a, b) => a.price - b.price };
+  const sorters = { rel: (a, b) => b.relevance - a.relevance, likes: (a, b) => (b.likes || 0) - (a.likes || 0), dl: (a, b) => (b.downloads || 0) - (a.downloads || 0), new: (a, b) => (b.date || 0) - (a.date || 0), price: (a, b) => a.price - b.price };
   list.sort(sorters[$('#sort').value]);
   // En "relevancia" intercalamos sitios para que ninguno tape a los demás
   if ($('#sort').value === 'rel') { const by = {}; list.forEach(r => (by[r.source] ||= []).push(r)); list = []; for (let i = 0; Object.values(by).some(a => a[i]); i++) Object.values(by).forEach(a => a[i] && list.push(a[i])); }
@@ -353,10 +380,11 @@ function render() {
   const grid = $('#grid'); grid.className = 'grid' + (state.view === 'list' ? ' list' : '');
 
   if (!list.length && loading) { grid.innerHTML = '<div class="skel"></div>'.repeat(8); }
+  else if (!srcs.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Elegiste solo sitios externos</h3><p>Usá los botones de arriba para ver los resultados en cada sitio, o activá Thingiverse o Cults3D para verlos acá.</p></div>`; }
   else if (!list.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Sin resultados</h3><p>Probá con otras palabras, quitá filtros o sumá más sitios.</p></div>`; }
   else grid.innerHTML = list.map(r => {
     const s = srcById(r.source);
-    const priceTxt = r.price ? `US$ ${r.price.toFixed(2).replace('.', ',')}` : 'Gratis';
+    const priceTxt = r.price ? `${{ USD: 'US$', EUR: '€' }[r.currency] || r.currency || 'US$'} ${r.price.toFixed(2).replace('.', ',')}` : 'Gratis';
     return `<a class="card" href="${esc(r.url)}" target="_blank" rel="noopener" style="--c:${s.color}">
       <div class="thumb">${r.thumb ? `<img src="${esc(r.thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : placeholderThumb(r, s.color)}
         <span class="badge"><i></i>${s.name}</span><span class="price${r.price ? '' : ' free'}">${priceTxt}</span></div>
@@ -364,8 +392,8 @@ function render() {
         <h4>${esc(r.title)}</h4>
         <span class="author">por ${esc(r.author)}</span>
         <span class="lp" style="color:${r.price ? 'var(--tinta)' : '#15803d'}">${priceTxt}</span>
-        <div class="tags">${r.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>
-        <div class="meta"><span title="Me gusta">♥ ${fmt(r.likes)}</span><span title="Descargas">↓ ${fmt(r.downloads)}</span></div>
+        <div class="tags">${(r.tags || []).map(t => `<span>${esc(t)}</span>`).join('')}</div>
+        <div class="meta">${r.likes != null ? `<span title="Me gusta">♥ ${fmt(r.likes)}</span>` : ''}${r.downloads != null ? `<span title="Descargas">↓ ${fmt(r.downloads)}</span>` : ''}</div>
       </div></a>`;
   }).join('');
 

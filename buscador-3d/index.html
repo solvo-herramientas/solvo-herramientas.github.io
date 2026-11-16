@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buscador 3D · SOLVO</title>
+<meta name="description" content="Buscá modelos para impresión 3D en varios sitios a la vez, desde una sola página.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --amarillo:#FEBF2C; --amarillo-osc:#b8860b; --tinta:#222; --gris:#6b7280; --linea:#e5e7eb; --fondo:#f3f4f6; --card:#fff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Poppins', system-ui, sans-serif; background: var(--fondo); color: var(--tinta); }
+  header { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 14px 20px; position: relative; z-index: 2; }
+  header .in, main, footer .in { max-width: 1180px; margin: 0 auto; }
+  header .in { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  header img { height: 36px; display: block; }
+  header a.web { color: var(--tinta); text-decoration: none; font-weight: 500; font-size: 14px; }
+  main { padding: 32px 20px 48px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--amarillo); outline-offset: 2px; }
+
+  .eyebrow { color: var(--amarillo-osc); font-weight: 600; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin: 0 0 4px; }
+  .eyebrow a { color: inherit; text-decoration: none; }
+  h1 { font-size: clamp(26px, 4.5vw, 36px); margin: 0 0 6px; line-height: 1.15; }
+  .lead { color: var(--gris); max-width: 62ch; margin: 0 0 24px; font-size: 15px; }
+
+  /* Búsqueda */
+  .search { background: #fff; border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.06); padding: 18px; display: grid; gap: 14px; }
+  .bar { display: flex; gap: 10px; }
+  .bar .field { flex: 1; position: relative; }
+  .bar svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gris); pointer-events: none; }
+  .bar input { width: 100%; font: inherit; font-size: 16px; padding: 13px 14px 13px 44px; border: 2px solid var(--linea); border-radius: 10px; background: #fff; color: var(--tinta); }
+  .bar input:focus { border-color: var(--amarillo); outline: none; }
+  .btn { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 0 22px; background: var(--amarillo); color: var(--tinta); cursor: pointer; min-height: 48px; }
+  .btn:hover { filter: brightness(.96); }
+  .btn.ghost { background: transparent; border: 1.5px solid var(--linea); font-weight: 500; font-size: 13px; min-height: 34px; padding: 0 12px; }
+  .row-label { font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .08em; margin-right: 4px; }
+  .sources { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip { font: inherit; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--linea); background: #fff; color: var(--gris); cursor: pointer; user-select: none; }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); opacity: .35; }
+  .chip[aria-pressed="true"] { border-color: var(--c); color: var(--tinta); background: color-mix(in srgb, var(--c) 10%, #fff); }
+  .chip[aria-pressed="true"] .dot { opacity: 1; }
+  .suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--gris); }
+  .suggest button { font: inherit; font-size: 13px; background: var(--fondo); border: 0; border-radius: 6px; padding: 3px 9px; cursor: pointer; color: var(--tinta); }
+  .suggest button:hover { background: #fdf0cf; }
+
+  /* Layout resultados */
+  .results-wrap { display: grid; grid-template-columns: 230px 1fr; gap: 22px; margin-top: 22px; }
+  aside { display: grid; gap: 16px; align-content: start; position: sticky; top: 16px; }
+  .panel { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.05); }
+  .panel h3 { font-size: 13px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--gris); }
+  .opt { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 4px 0; cursor: pointer; }
+  .opt input { accent-color: var(--amarillo-osc); }
+  select { font: inherit; font-size: 14px; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--linea); background: #fff; color: var(--tinta); }
+  .status { display: grid; gap: 7px; font-size: 13px; }
+  .status div { display: flex; align-items: center; gap: 8px; }
+  .status .n { margin-left: auto; color: var(--gris); font-variant-numeric: tabular-nums; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+  .spin { width: 12px; height: 12px; border: 2px solid var(--linea); border-top-color: var(--amarillo-osc); border-radius: 50%; animation: s .7s linear infinite; margin-left: auto; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .ext a { display: flex; justify-content: space-between; font-size: 13px; color: var(--tinta); text-decoration: none; padding: 5px 0; border-bottom: 1px dashed var(--linea); }
+  .ext a:last-child { border-bottom: 0; }
+  .ext a:hover { color: var(--amarillo-osc); }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar .count { font-size: 14px; color: var(--gris); }
+  .toolbar .count b { color: var(--tinta); }
+  .view { display: flex; gap: 4px; }
+  .view button { font: inherit; border: 1.5px solid var(--linea); background: #fff; border-radius: 8px; width: 36px; height: 34px; cursor: pointer; color: var(--gris); display: grid; place-items: center; }
+  .view button[aria-pressed="true"] { border-color: var(--amarillo); color: var(--tinta); background: #fff8e6; }
+  .filters-toggle { display: none; }
+
+  .notice { font-size: 13px; background: #fff8e6; border: 1px solid #f5dfa3; color: #6b4e00; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,.06); display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: transform .18s, box-shadow .18s; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,.1); }
+  .thumb { aspect-ratio: 4/3; position: relative; overflow: hidden; }
+  .thumb svg { width: 100%; height: 100%; display: block; }
+  .badge { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: #fff; color: var(--tinta); box-shadow: 0 1px 4px rgba(0,0,0,.15); display: flex; align-items: center; gap: 5px; }
+  .badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+  .price { position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--tinta); color: #fff; }
+  .price.free { background: #15803d; }
+  .body { padding: 12px 14px 14px; display: grid; gap: 4px; flex: 1; }
+  .body h4 { margin: 0; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .author { font-size: 12px; color: var(--gris); }
+  .meta { display: flex; gap: 12px; font-size: 12px; color: var(--gris); margin-top: auto; padding-top: 6px; font-variant-numeric: tabular-nums; }
+  .meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tags span { font-size: 11px; background: var(--fondo); border-radius: 4px; padding: 1px 6px; color: var(--gris); }
+
+  .grid.list { grid-template-columns: 1fr; gap: 10px; }
+  .grid.list .card { flex-direction: row; }
+  .grid.list .thumb { width: 150px; flex: none; aspect-ratio: 4/3; }
+  .grid.list .price { display: none; }
+  .grid.list .body { grid-template-columns: 1fr auto; align-items: start; }
+  .grid.list .body > * { grid-column: 1; }
+  .grid.list .lp { grid-column: 2; grid-row: 1 / span 2; font-size: 13px; font-weight: 700; }
+
+  .skel { background: linear-gradient(90deg, #eceef1 25%, #f6f7f9 50%, #eceef1 75%); background-size: 200% 100%; animation: sh 1.2s infinite; border-radius: 12px; aspect-ratio: 3/3.3; }
+  @keyframes sh { to { background-position: -200% 0; } }
+  .empty { text-align: center; padding: 60px 20px; color: var(--gris); background: #fff; border-radius: 12px; }
+  .empty h3 { color: var(--tinta); margin: 10px 0 4px; }
+  .more { display: flex; justify-content: center; margin-top: 20px; }
+
+  footer { padding: 24px 20px 40px; color: var(--gris); font-size: 13px; }
+  footer .in { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; border-top: 1px solid var(--linea); padding-top: 18px; }
+  footer a { color: var(--gris); }
+
+  @media (max-width: 820px) {
+    .results-wrap { grid-template-columns: 1fr; }
+    aside { position: static; display: none; }
+    aside.open { display: grid; }
+    .filters-toggle { display: inline-flex; align-items: center; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .grid.list .thumb { width: 110px; }
+  }
+  @media (max-width: 480px) {
+    main { padding: 22px 16px 40px; }
+    .bar { flex-direction: column; }
+    .btn { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .card, .skel, .spin { transition: none; animation: none; } }
+</style>
+</head>
+<body>
+<header><div class="in">
+  <a href="https://solvo.ar" aria-label="Ir a solvo.ar"><img src="../logo-solvo.png" alt="SOLVO Fabricaciones Digitales"></a>
+  <a class="web" href="../">← Todas las herramientas</a>
+</div></header>
+
+<main>
+  <p class="eyebrow"><a href="../">Herramientas SOLVO</a></p>
+  <h1>Buscador 3D</h1>
+  <p class="lead">Buscá modelos para imprimir en varios repositorios a la vez y compará los resultados en un solo lugar.</p>
+
+  <form class="search" id="form" role="search">
+    <div class="bar">
+      <div class="field">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Ej.: soporte de celular, engranaje, maceta…" autocomplete="off" aria-label="Qué querés imprimir">
+      </div>
+      <button class="btn" type="submit">Buscar</button>
+    </div>
+    <div class="sources" id="sources"><span class="row-label">Buscar en</span></div>
+    <div class="suggest" id="suggest">Probá:</div>
+  </form>
+
+  <div class="results-wrap" id="results-wrap" hidden>
+    <aside id="aside">
+      <div class="panel">
+        <h3>Estado por sitio</h3>
+        <div class="status" id="status"></div>
+      </div>
+      <div class="panel">
+        <h3>Precio</h3>
+        <label class="opt"><input type="radio" name="price" value="all" checked> Todos</label>
+        <label class="opt"><input type="radio" name="price" value="free"> Solo gratis</label>
+        <label class="opt"><input type="radio" name="price" value="paid"> Solo pagos</label>
+      </div>
+      <div class="panel">
+        <h3>Ordenar por</h3>
+        <select id="sort" aria-label="Ordenar por">
+          <option value="rel">Relevancia</option>
+          <option value="likes">Más gustados</option>
+          <option value="dl">Más descargados</option>
+          <option value="new">Más recientes</option>
+          <option value="price">Precio (menor a mayor)</option>
+        </select>
+      </div>
+      <div class="panel ext">
+        <h3>Abrir en cada sitio</h3>
+        <div id="ext"></div>
+      </div>
+    </aside>
+
+    <section aria-live="polite">
+      <div class="toolbar">
+        <button class="btn ghost filters-toggle" id="filters-toggle" type="button" aria-expanded="false">Filtros</button>
+        <span class="count" id="count"></span>
+        <div class="view" role="group" aria-label="Vista">
+          <button type="button" data-view="grid" aria-pressed="true" title="Cuadrícula"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg></button>
+          <button type="button" data-view="list" aria-pressed="false" title="Lista"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="3" rx="1"/><rect x="1" y="7" width="14" height="3" rx="1"/><rect x="1" y="12" width="14" height="3" rx="1"/></svg></button>
+        </div>
+      </div>
+      <p class="notice"><b>Prototipo de interfaz.</b> Los resultados son datos de ejemplo generados para evaluar el diseño. Los enlaces “Abrir en cada sitio” sí funcionan y llevan a la búsqueda real.</p>
+      <div class="grid" id="grid"></div>
+      <div class="more" id="more" hidden><button class="btn ghost" type="button" id="more-btn">Cargar más resultados</button></div>
+    </section>
+  </div>
+
+  <div class="empty" id="welcome">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#FEBF2C" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>
+    <h3>Una búsqueda, todos los repositorios</h3>
+    <p>Escribí qué querés imprimir y elegí en qué sitios buscar.</p>
+  </div>
+</main>
+
+<footer><div class="in">
+  <span>© 2026 SOLVO Fabricaciones Digitales · San Juan, Argentina</span>
+  <span><a href="https://cafecito.app/solvo">☕ Invitanos un cafecito</a></span>
+</div></footer>
+
+<script>
+/* =========================================================
+   FUENTES
+   Cada sitio define: id, nombre, color, URL de búsqueda en el
+   sitio y una función `search(query, page)` que devuelve
+   Promise<Array<Resultado>>.
+   Hoy todas usan `demoSearch` (datos de ejemplo). Para conectar
+   un sitio real, se reemplaza su `search` por un adaptador que
+   consulte su API (directo o a través de un proxy).
+
+   Resultado = { id, title, author, url, thumb?, likes, downloads,
+                 price (0 = gratis), currency, date, tags[] }
+   ========================================================= */
+const SOURCES = [
+  { id: 'printables',    name: 'Printables',    color: '#FA6831', searchUrl: q => `https://www.printables.com/search/models?q=${q}` },
+  { id: 'thingiverse',   name: 'Thingiverse',   color: '#248BFB', searchUrl: q => `https://www.thingiverse.com/search?q=${q}&type=things` },
+  { id: 'makerworld',    name: 'MakerWorld',    color: '#00AE42', searchUrl: q => `https://makerworld.com/es/search/models?keyword=${q}` },
+  { id: 'cults',         name: 'Cults3D',       color: '#8E44AD', searchUrl: q => `https://cults3d.com/es/b%C3%BAsqueda?q=${q}` },
+  { id: 'myminifactory', name: 'MyMiniFactory', color: '#1F2A44', searchUrl: q => `https://www.myminifactory.com/search/?query=${q}` },
+  { id: 'thangs',        name: 'Thangs',        color: '#D6336C', searchUrl: q => `https://thangs.com/search/${q}?scope=all` },
+].map(s => ({ ...s, search: (q, page) => demoSearch(s, q, page) }));
+
+const SUGGESTIONS = ['soporte celular', 'engranaje', 'maceta', 'organizador', 'clip cable', 'llavero'];
+const PAGE_SIZE = 6;
+
+/* ---------- Datos de ejemplo (deterministas por consulta) ---------- */
+function rng(seed) { let h = 2166136261; for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909), (h >>>= 0) / 4294967296)); }
+const ADJ = ['paramétrico', 'sin soportes', 'articulado', 'modular', 'reforzado', 'compacto', 'minimalista', 'print-in-place', 'remix', 'ajustable'];
+const AUTH = ['makerlab', 'nico_prints', 'PolyForge', 'la_impresora', 'filamentum', 'CADcrafter', 'tito3d', 'LayerZero', 'andes_maker', 'BrimAndRaft'];
+const TAGS = ['PLA', 'PETG', 'TPU', 'funcional', 'hogar', 'taller', 'decoración', 'herramienta', 'multicolor', 'sin soportes'];
+const pick = (r, a) => a[Math.floor(r() * a.length)];
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+function demoSearch(src, q, page) {
+  const r = rng(src.id + '|' + q.toLowerCase() + '|' + page);
+  const n = page > 2 ? 0 : Math.floor(r() * 3) + PAGE_SIZE - 2;
+  const paidSite = ['cults', 'myminifactory'].includes(src.id);
+  const items = Array.from({ length: n }, (_, i) => {
+    const paid = r() < (paidSite ? .5 : .08);
+    return {
+      id: `${src.id}-${page}-${i}`,
+      title: `${cap(q)} ${pick(r, ADJ)}${r() < .4 ? ' v' + (1 + Math.floor(r() * 4)) : ''}`,
+      author: pick(r, AUTH),
+      url: src.searchUrl(encodeURIComponent(q)),
+      likes: Math.floor(r() ** 2 * 4000),
+      downloads: Math.floor(r() ** 2 * 30000),
+      price: paid ? +(1 + r() * 14).toFixed(2) : 0,
+      currency: 'USD',
+      date: Date.now() - Math.floor(r() * 900) * 864e5,
+      tags: [pick(r, TAGS), pick(r, TAGS)].filter((t, k, a) => a.indexOf(t) === k),
+      relevance: r() - page,
+      hue: Math.floor(r() * 360),
+      shape: Math.floor(r() * 3),
+    };
+  });
+  const delay = 350 + r() * 1400;
+  const fail = q.toLowerCase().includes('error') && src.id === 'thangs'; // para ver el estado de error
+  return new Promise((res, rej) => setTimeout(() => fail ? rej(new Error('Sin respuesta')) : res(items), delay));
+}
+
+/* Miniatura de reemplazo cuando el resultado no trae imagen */
+function placeholderThumb(it, color) {
+  const h = it.hue, shapes = [
+    `<path d="M80 30 125 55v50l-45 25-45-25V55z" fill="hsl(${h} 45% 70%)"/><path d="M80 30 125 55 80 80 35 55z" fill="hsl(${h} 50% 82%)"/><path d="M80 80v50l45-25V55z" fill="hsl(${h} 40% 58%)"/>`,
+    `<ellipse cx="80" cy="110" rx="42" ry="12" fill="hsl(${h} 40% 58%)"/><rect x="38" y="50" width="84" height="60" fill="hsl(${h} 45% 70%)"/><ellipse cx="80" cy="50" rx="42" ry="12" fill="hsl(${h} 50% 82%)"/>`,
+    `<path d="M80 28 128 118H32z" fill="hsl(${h} 45% 70%)"/><path d="M80 28 128 118H80z" fill="hsl(${h} 40% 58%)"/>`,
+  ];
+  return `<svg viewBox="0 0 160 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="160" height="120" fill="hsl(${h} 30% 95%)"/><g opacity=".9">${shapes[it.shape]}</g></svg>`;
+}
+
+/* ---------- Estado y UI ---------- */
+const $ = s => document.querySelector(s);
+const state = { q: '', page: 1, active: new Set(load('sources', SOURCES.map(s => s.id))), results: [], status: {}, view: load('view', 'grid') };
+function load(k, d) { try { const v = localStorage.getItem('b3d.' + k); return v ? JSON.parse(v) : d; } catch { return d; } }
+function save(k, v) { try { localStorage.setItem('b3d.' + k, JSON.stringify(v)); } catch {} }
+const fmt = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' k' : String(n);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const srcById = id => SOURCES.find(s => s.id === id);
+
+// Chips de sitios
+SOURCES.forEach(s => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.style.setProperty('--c', s.color);
+  b.innerHTML = `<span class="dot"></span>${s.name}`;
+  b.setAttribute('aria-pressed', state.active.has(s.id));
+  b.onclick = () => {
+    state.active.has(s.id) ? state.active.delete(s.id) : state.active.add(s.id);
+    if (!state.active.size) state.active.add(s.id);
+    b.setAttribute('aria-pressed', state.active.has(s.id));
+    save('sources', [...state.active]);
+    if (state.q) run(state.q);
+  };
+  $('#sources').append(b);
+});
+SUGGESTIONS.forEach(t => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = () => { $('#q').value = t; run(t); }; $('#suggest').append(b); });
+
+$('#form').onsubmit = e => { e.preventDefault(); const q = $('#q').value.trim(); if (q) run(q); else $('#q').focus(); };
+document.querySelectorAll('input[name=price]').forEach(i => i.onchange = render);
+$('#sort').onchange = render;
+$('#filters-toggle').onclick = e => { const o = $('#aside').classList.toggle('open'); e.currentTarget.setAttribute('aria-expanded', o); };
+document.querySelectorAll('.view button').forEach(b => b.onclick = () => { state.view = b.dataset.view; save('view', state.view); render(); });
+$('#more-btn').onclick = () => fetchPage(state.page + 1);
+
+let token = 0;
+function run(q) {
+  state.q = q; state.results = []; state.page = 0;
+  const u = new URL(location); u.searchParams.set('q', q); history.replaceState(null, '', u);
+  $('#welcome').hidden = true; $('#results-wrap').hidden = false;
+  $('#ext').innerHTML = SOURCES.filter(s => state.active.has(s.id))
+    .map(s => `<a href="${s.searchUrl(encodeURIComponent(q))}" target="_blank" rel="noopener">${s.name}<span>↗</span></a>`).join('');
+  fetchPage(1, ++token);
+}
+
+function fetchPage(page, t = token) {
+  state.page = page;
+  const srcs = SOURCES.filter(s => state.active.has(s.id));
+  srcs.forEach(s => state.status[s.id] = { loading: true, n: state.status[s.id]?.n && page > 1 ? state.status[s.id].n : 0 });
+  render();
+  srcs.forEach(s => s.search(state.q, page)
+    .then(items => { if (t !== token) return; state.results.push(...items.map(it => ({ ...it, source: s.id }))); state.status[s.id] = { n: (page > 1 ? state.status[s.id].n : 0) + items.length, done: items.length < PAGE_SIZE - 2 }; })
+    .catch(err => { if (t !== token) return; state.status[s.id] = { error: err.message }; })
+    .finally(() => t === token && render()));
+}
+
+function render() {
+  const srcs = SOURCES.filter(s => state.active.has(s.id));
+  // Estado por sitio
+  $('#status').innerHTML = srcs.map(s => {
+    const st = state.status[s.id] || {};
+    const right = st.loading ? '<span class="spin" aria-label="Buscando"></span>' : st.error ? `<span class="n" style="color:#b91c1c">${esc(st.error)}</span>` : `<span class="n">${st.n}</span>`;
+    return `<div style="--c:${s.color}"><span class="dot"></span>${s.name}${right}</div>`;
+  }).join('');
+
+  // Filtrar y ordenar
+  const price = document.querySelector('input[name=price]:checked').value;
+  let list = state.results.filter(r => state.active.has(r.source) && (price === 'all' || (price === 'free' ? !r.price : r.price > 0)));
+  const sorters = { rel: (a, b) => b.relevance - a.relevance, likes: (a, b) => b.likes - a.likes, dl: (a, b) => b.downloads - a.downloads, new: (a, b) => b.date - a.date, price: (a, b) => a.price - b.price };
+  list.sort(sorters[$('#sort').value]);
+  // En "relevancia" intercalamos sitios para que ninguno tape a los demás
+  if ($('#sort').value === 'rel') { const by = {}; list.forEach(r => (by[r.source] ||= []).push(r)); list = []; for (let i = 0; Object.values(by).some(a => a[i]); i++) Object.values(by).forEach(a => a[i] && list.push(a[i])); }
+
+  const loading = srcs.some(s => state.status[s.id]?.loading);
+  $('#count').innerHTML = `<b>${list.length}</b> resultados para “${esc(state.q)}” en ${srcs.length} ${srcs.length === 1 ? 'sitio' : 'sitios'}${loading ? '…' : ''}`;
+  document.querySelectorAll('.view button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === state.view));
+  const grid = $('#grid'); grid.className = 'grid' + (state.view === 'list' ? ' list' : '');
+
+  if (!list.length && loading) { grid.innerHTML = '<div class="skel"></div>'.repeat(8); }
+  else if (!list.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Sin resultados</h3><p>Probá con otras palabras, quitá filtros o sumá más sitios.</p></div>`; }
+  else grid.innerHTML = list.map(r => {
+    const s = srcById(r.source);
+    const priceTxt = r.price ? `US$ ${r.price.toFixed(2).replace('.', ',')}` : 'Gratis';
+    return `<a class="card" href="${esc(r.url)}" target="_blank" rel="noopener" style="--c:${s.color}">
+      <div class="thumb">${r.thumb ? `<img src="${esc(r.thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : placeholderThumb(r, s.color)}
+        <span class="badge"><i></i>${s.name}</span><span class="price${r.price ? '' : ' free'}">${priceTxt}</span></div>
+      <div class="body">
+        <h4>${esc(r.title)}</h4>
+        <span class="author">por ${esc(r.author)}</span>
+        <span class="lp" style="color:${r.price ? 'var(--tinta)' : '#15803d'}">${priceTxt}</span>
+        <div class="tags">${r.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>
+        <div class="meta"><span title="Me gusta">♥ ${fmt(r.likes)}</span><span title="Descargas">↓ ${fmt(r.downloads)}</span></div>
+      </div></a>`;
+  }).join('');
+
+  const canMore = !loading && srcs.some(s => { const st = state.status[s.id]; return st && !st.error && !st.done; });
+  $('#more').hidden = !canMore || !list.length;
+}
+
+// Búsqueda desde la URL (?q=...)
+const initial = new URLSearchParams(location.search).get('q');
+if (initial) { $('#q').value = initial; run(initial); }
+</script>
+</body>
+</html>

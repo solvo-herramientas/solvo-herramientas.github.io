@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Regla SOLVO · Medir con el celular</title>
+<meta name="description" content="Regla milimétrica con divisiones de medio milímetro y galga de diámetros en la pantalla del celular. Se calibra una sola vez con una tarjeta o una regla real.">
+<meta name="theme-color" content="#1f2328">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --amarillo:#FEBF2C; --tinta:#1f2328; --gris:#6b7280; --linea:#e5e7eb; --ya:#d9480f; --xa:#1c7ed6; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: 'Poppins', system-ui, sans-serif; color: var(--tinta); background: #fff; overflow: hidden;
+         overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  .view { flex: 1; position: relative; overflow: hidden; display: none; min-height: 0; }
+  .view.on { display: block; }
+  canvas.full { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+
+  /* barra inferior */
+  nav.tabs { display: flex; background: var(--tinta); padding-bottom: env(safe-area-inset-bottom); flex: none; }
+  nav.tabs button { flex: 1; color: #cbd5e1; background: none; border: 0; padding: 7px 2px 8px; font: inherit; font-size: 12px;
+                    display: grid; justify-items: center; gap: 1px; cursor: pointer; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button[aria-selected="true"] { color: var(--amarillo); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--amarillo); outline-offset: -4px; }
+
+  /* paneles flotantes */
+  .panel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(255,255,255,.96); border-radius: 14px;
+           box-shadow: 0 4px 20px rgba(0,0,0,.18); padding: 10px 12px; font-size: 14px; max-height: 70%; overflow: auto; }
+  .panel h2 { font-size: 16px; margin: 0 0 4px; }
+  .panel p { margin: 4px 0; color: var(--gris); font-size: 13px; line-height: 1.45; }
+  .panel.min .extra { display: none; }
+  .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .grow { flex: 1; }
+  button.b { font: inherit; font-size: 14px; font-weight: 600; border: 1px solid #d1d5db; background: #fff; color: var(--tinta);
+             border-radius: 10px; padding: 8px 10px; min-width: 44px; min-height: 40px; cursor: pointer; }
+  button.b:active { background: #f3f4f6; }
+  button.b.primary { background: var(--amarillo); border-color: var(--amarillo); }
+  button.b.on { background: var(--tinta); color: #fff; border-color: var(--tinta); }
+  button.b:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--amarillo); outline-offset: 2px; }
+  select, input[type=number] { font: inherit; font-size: 14px; border: 1px solid #d1d5db; border-radius: 10px; padding: 8px; background: #fff; color: var(--tinta); min-height: 40px; }
+  input[type=number] { width: 7.5em; }
+  label.f { display: grid; gap: 3px; font-size: 12px; color: var(--gris); font-weight: 500; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
+  .readout { display: flex; gap: 14px; }
+  .readout div { display: grid; }
+  .readout small { font-size: 11px; color: var(--gris); font-weight: 500; }
+  .readout b { font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .readout .y b { color: var(--ya); }
+  .readout .x b { color: var(--xa); }
+  .big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .muted { color: var(--gris); font-size: 12px; }
+
+  .banner { position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 140px);
+            background: var(--tinta); color: #fff; border-radius: 10px; padding: 8px 12px; font-size: 13px; display: flex; gap: 10px;
+            align-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.2); z-index: 2; }
+  .banner button { font: inherit; font-weight: 600; font-size: 13px; background: var(--amarillo); border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* galga */
+  #gauge { position: absolute; inset: 0; overflow: auto; touch-action: pan-y; padding: 12px 12px 120px; }
+  #gauge .grid { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-end; }
+  #gauge figure { margin: 0; display: grid; justify-items: center; gap: 4px; padding: 6px; border-radius: 10px; cursor: pointer; }
+  #gauge figure.sel { background: #fff4d6; }
+  #gauge figcaption { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #gauge svg { display: block; overflow: visible; }
+  .subtabs { display: inline-flex; background: #f3f4f6; border-radius: 10px; padding: 3px; gap: 3px; }
+  .subtabs button { font: inherit; font-size: 13px; font-weight: 600; border: 0; background: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; color: var(--gris); }
+  .subtabs button[aria-selected="true"] { background: #fff; color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .topbar { position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 8px; right: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; z-index: 2; }
+  .topbar .card { background: rgba(255,255,255,.96); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.12); padding: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ REGLA ============ -->
+  <section class="view" id="v-regla" aria-label="Regla">
+    <canvas class="full" id="cvRuler" aria-label="Regla milimétrica con divisiones de medio milímetro"></canvas>
+    <div class="banner hidden" id="bnRuler"><span id="bnRulerTxt">Sin calibrar: la escala es aproximada.</span><button data-go="cal">Calibrar</button></div>
+    <div class="panel" id="pRuler">
+      <div class="row" style="margin-top:0">
+        <div class="readout grow">
+          <div class="y"><small>Vertical ↕</small><b id="rdY">–</b></div>
+          <div class="x"><small>Horizontal ↔</small><b id="rdX">–</b></div>
+        </div>
+        <button class="b" id="btnRulerMin" aria-label="Minimizar panel" title="Minimizar">▾</button>
+      </div>
+      <div class="extra">
+        <div class="row">
+          <span class="muted grow" id="actLbl">Ajuste fino</span>
+          <button class="b" data-nudge="-1" aria-label="Mover línea activa −0,1 mm">−0,1</button>
+          <button class="b" data-nudge="1" aria-label="Mover línea activa +0,1 mm">+0,1</button>
+        </div>
+        <div class="row">
+          <button class="b" id="btnGrid">Cuadrícula</button>
+          <button class="b" id="btnZero">Líneas a 0</button>
+          <button class="b" id="btnReset">Reiniciar</button>
+        </div>
+        <p>Arrastrá las líneas hasta los bordes del objeto. Tocá una línea para activarla y afinala de a 0,1 mm. Los números de la regla están en centímetros.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DIÁMETROS ============ -->
+  <section class="view" id="v-diam" aria-label="Diámetros">
+    <div class="topbar">
+      <div class="card"><div class="subtabs" role="tablist">
+        <button role="tab" aria-selected="true" data-dmode="adj">Ajustable</button>
+        <button role="tab" aria-selected="false" data-dmode="gauge">Galga</button>
+      </div></div>
+      <div class="card hidden" id="gaugeSetWrap"><select id="gaugeSet" aria-label="Conjunto de diámetros">
+        <option value="fine">1 a 10 mm (cada 0,5)</option>
+        <option value="mm">10 a 40 mm (cada 1)</option>
+        <option value="std">Tornillos y filamentos</option>
+      </select></div>
+    </div>
+    <div class="banner hidden" id="bnDiam" style="top:calc(64px + env(safe-area-inset-top))"><span>Sin calibrar: los diámetros son aproximados.</span><button data-go="cal">Calibrar</button></div>
+
+    <div id="diamAdj">
+      <canvas class="full" id="cvDiam" aria-label="Círculo de diámetro ajustable"></canvas>
+      <div class="panel" id="pDiam">
+        <div class="row" style="margin-top:0">
+          <div class="grow"><div class="muted">Diámetro</div><div class="big" id="rdD">–</div></div>
+          <label class="f">Escribir Ø (mm)<input type="number" id="inD" step="0.1" min="1" inputmode="decimal"></label>
+        </div>
+        <div class="row">
+          <button class="b grow" data-dd="-1">−1</button>
+          <button class="b grow" data-dd="-0.1">−0,1</button>
+          <button class="b grow" data-dd="0.1">+0,1</button>
+          <button class="b grow" data-dd="1">+1</button>
+        </div>
+        <p>Apoyá el objeto (tornillo, caño, moneda, varilla) sobre el círculo y ajustá hasta que el borde coincida. Arrastrá el dedo desde el centro hacia afuera para agrandar o achicar.</p>
+      </div>
+    </div>
+
+    <div id="gauge" class="hidden" aria-label="Galga de círculos">
+      <div style="height:56px"></div>
+      <div class="grid" id="gaugeGrid"></div>
+      <p class="muted" style="margin-top:18px">Apoyá el objeto sobre los círculos para comparar. El borde negro marca el diámetro exacto. Tocá un círculo para resaltarlo.</p>
+    </div>
+  </section>
+
+  <!-- ============ CALIBRAR ============ -->
+  <section class="view" id="v-cal" aria-label="Calibrar">
+    <canvas class="full" id="cvCal" aria-label="Zona de calibración"></canvas>
+    <div class="panel" id="pCal">
+      <div class="row" style="margin-top:0">
+        <h2 class="grow">Calibrar pantalla</h2>
+        <button class="b" id="btnCalMin" aria-label="Minimizar panel" title="Minimizar">▾</button>
+      </div>
+      <div>
+        <div class="row">
+          <label class="f grow">Referencia
+            <select id="calRef">
+              <option value="card_s">Tarjeta · lado corto (53,98 mm)</option>
+              <option value="card_l">Tarjeta · lado largo (85,60 mm)</option>
+              <option value="r50">Regla real · 50 mm</option>
+              <option value="r80">Regla real · 80 mm</option>
+              <option value="r100">Regla real · 100 mm</option>
+              <option value="custom">Otra medida conocida…</option>
+            </select>
+          </label>
+          <label class="f hidden" id="calCustomWrap">Medida (mm)<input type="number" id="calCustom" step="0.01" min="5" value="60" inputmode="decimal"></label>
+        </div>
+      </div>
+      <div class="extra"><p id="calHelp"></p></div>
+      <div class="row">
+        <button class="b" data-cal="-10" aria-label="Achicar 10 píxeles">−10</button>
+        <button class="b" data-cal="-1" aria-label="Achicar 1 píxel">−1</button>
+        <div class="grow" style="text-align:center"><div class="muted">Línea B</div><b id="calVal" style="font-variant-numeric:tabular-nums">–</b></div>
+        <button class="b" data-cal="1" aria-label="Agrandar 1 píxel">+1</button>
+        <button class="b" data-cal="10" aria-label="Agrandar 10 píxeles">+10</button>
+      </div>
+      <div class="extra">
+        <details>
+          <summary>Sin tarjeta ni regla: estimar por pulgadas</summary>
+          <div class="row">
+            <label class="f">Diagonal de la pantalla (pulgadas)<input type="number" id="calIn" step="0.01" min="3" max="15" placeholder="6,5" inputmode="decimal"></label>
+            <button class="b" id="btnCalEst" style="align-self:end">Estimar</button>
+          </div>
+          <p>Usa la diagonal que figura en la ficha técnica del modelo. Es solo una aproximación (bordes redondeados, barras del sistema): conviene confirmar con una tarjeta.</p>
+        </details>
+        <p class="muted" id="calInfo"></p>
+      </div>
+      <div class="row">
+        <button class="b" id="btnCalCancel">Cancelar</button>
+        <button class="b primary grow" id="btnCalSave">Guardar calibración</button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button role="tab" data-tab="regla" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 8v3M11 8v4M15 8v3M19 8v2"/></svg>Regla</button>
+    <button role="tab" data-tab="diam" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/></svg>Diámetros</button>
+    <button role="tab" data-tab="cal" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M4 10h16M8 14h3"/></svg>Calibrar</button>
+    <button id="btnFull" aria-label="Pantalla completa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Completa</button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  // ---------- almacenamiento (tolerante a fallos) ----------
+  const LS = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+  const KEY_CAL = 'solvo-regla-cal', KEY_ST = 'solvo-regla-estado';
+
+  // Android define 1 px CSS ≈ 1/160 de pulgada: buen punto de partida sin calibrar.
+  const DEF_PPMM = 160 / 25.4;
+  const fmt = (n, d = 1) => n.toFixed(d).replace('.', ',');
+  const parseNum = v => parseFloat(String(v).replace(',', '.'));
+  const dpr = () => window.devicePixelRatio || 1;
+  const screenSig = () => { const a = screen.width, b = screen.height; return { dpr: dpr(), s: [Math.min(a, b), Math.max(a, b)] }; };
+
+  let cal = LS.get(KEY_CAL, null);
+  let ppmm = cal && cal.ppmm > 0 ? cal.ppmm : DEF_PPMM;   // píxeles CSS por milímetro
+
+  function calStatus() {
+    if (!cal) return 'none';
+    const s = screenSig();
+    if (Math.abs(s.dpr - cal.dpr) > 0.001 || s.s[0] !== cal.s[0] || s.s[1] !== cal.s[1]) return 'changed';
+    return 'ok';
+  }
+
+  const st = Object.assign({ grid: false, y1: 15, y2: 45, x1: 15, x2: 35, act: 'y2', d: 20, dmode: 'adj', gset: 'fine', rMin: false }, LS.get(KEY_ST, {}));
+  const saveSt = () => LS.set(KEY_ST, st);
+
+  function fitCanvas(cv) {
+    const r = cv.getBoundingClientRect(), k = dpr();
+    const w = Math.max(1, Math.round(r.width * k)), h = Math.max(1, Math.round(r.height * k));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    return { W: w, H: h, cw: r.width, ch: r.height, k };
+  }
+  const localPt = (cv, e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+
+  // ---------- navegación ----------
+  let tab = 'regla';
+  function show(t) {
+    tab = t;
+    $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + t));
+    $$('nav.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t));
+    if (t === 'cal') openCal();
+    redraw();
+  }
+  $$('nav.tabs [data-tab]').forEach(b => b.addEventListener('click', () => show(b.dataset.tab)));
+  $$('[data-go]').forEach(b => b.addEventListener('click', () => show(b.dataset.go)));
+
+  $('#btnFull').addEventListener('click', () => {
+    const d = document;
+    if (d.fullscreenElement) d.exitFullscreen && d.exitFullscreen();
+    else if (d.documentElement.requestFullscreen) d.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+  });
+
+  function updateBanners() {
+    const s = calStatus();
+    const txt = s === 'none' ? 'Sin calibrar: la escala es aproximada.' : 'Cambió la escala de pantalla: recalibrá.';
+    $('#bnRulerTxt').textContent = txt;
+    $('#bnRuler').classList.toggle('hidden', s === 'ok');
+    $('#bnDiam').classList.toggle('hidden', s === 'ok');
+    $('#bnDiam span').textContent = s === 'none' ? 'Sin calibrar: los diámetros son aproximados.' : 'Cambió la escala de pantalla: recalibrá.';
+  }
+
+  function redraw() {
+    updateBanners();
+    if (tab === 'regla') drawRuler();
+    else if (tab === 'diam') { if (st.dmode === 'adj') drawDiam(); else buildGauge(); }
+    else if (tab === 'cal') drawCal();
+  }
+  let rq = 0;
+  const schedule = () => { if (!rq) rq = requestAnimationFrame(() => { rq = 0; redraw(); }); };
+  window.addEventListener('resize', schedule);
+  if (window.ResizeObserver) new ResizeObserver(schedule).observe($('#app'));
+
+  // =====================================================================
+  //  REGLA
+  // =====================================================================
+  const cvR = $('#cvRuler');
+  const CUR = {
+    y1: { axis: 'y', color: '#d9480f', name: 'naranja 1' },
+    y2: { axis: 'y', color: '#d9480f', name: 'naranja 2' },
+    x1: { axis: 'x', color: '#1c7ed6', name: 'azul 1' },
+    x2: { axis: 'x', color: '#1c7ed6', name: 'azul 2' }
+  };
+  const STRIP = 10;                 // ancho de la franja amarilla (mm)
+
+  function drawRuler() {
+    const { W, H, k } = fitCanvas(cvR);
+    const g = cvR.getContext('2d');
+    const s = ppmm * k;             // píxeles físicos por mm
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+
+    if (st.grid) {
+      for (let i = 0; i * s <= W; i++) { g.fillStyle = i % 10 === 0 ? '#c9ced6' : i % 5 === 0 ? '#dde1e6' : '#eef0f3'; g.fillRect(Math.round(i * s), 0, 1, H); }
+      for (let i = 0; i * s <= H; i++) { g.fillStyle = i % 10 === 0 ? '#c9ced6' : i % 5 === 0 ? '#dde1e6' : '#eef0f3'; g.fillRect(0, Math.round(i * s), W, 1); }
+    }
+
+    // zonas entre líneas
+    const Y1 = st.y1 * s, Y2 = st.y2 * s, X1 = st.x1 * s, X2 = st.x2 * s;
+    g.fillStyle = 'rgba(217,72,15,.07)'; g.fillRect(0, Math.min(Y1, Y2), W, Math.abs(Y2 - Y1));
+    g.fillStyle = 'rgba(28,126,214,.07)'; g.fillRect(Math.min(X1, X2), 0, Math.abs(X2 - X1), H);
+
+    // franjas de la regla
+    g.fillStyle = '#FEBF2C';
+    g.fillRect(0, 0, Math.round(STRIP * s), H);
+    g.fillRect(0, 0, W, Math.round(STRIP * s));
+
+    // marcas: i cuenta medios milímetros
+    const len = i => i % 20 === 0 ? 6 : i % 10 === 0 ? 4.5 : i % 2 === 0 ? 3 : 1.8;
+    const lwOf = i => i % 10 === 0 ? Math.max(1, Math.round(k)) : Math.max(1, Math.round(k * 0.6));
+    g.fillStyle = '#1f2328';
+    for (let i = 0; i * 0.5 * s <= H; i++) { const p = i * 0.5 * s, lw = lwOf(i); g.fillRect(0, Math.round(p - lw / 2), Math.round(len(i) * s), lw); }
+    for (let i = 0; i * 0.5 * s <= W; i++) { const p = i * 0.5 * s, lw = lwOf(i); g.fillRect(Math.round(p - lw / 2), 0, lw, Math.round(len(i) * s)); }
+
+    // números (cm)
+    g.font = `600 ${Math.round(2.6 * s)}px system-ui, -apple-system, Roboto, sans-serif`;
+    g.textAlign = 'left'; g.textBaseline = 'middle';
+    for (let c = 1; c * 10 * s <= H; c++) g.fillText(String(c), Math.round(6.6 * s), Math.round(c * 10 * s));
+    g.textAlign = 'center'; g.textBaseline = 'top';
+    for (let c = 1; c * 10 * s <= W; c++) g.fillText(String(c), Math.round(c * 10 * s), Math.round(6.4 * s));
+
+    // líneas de medición
+    const lw = Math.max(1, Math.round(k));
+    for (const id of ['y1', 'y2', 'x1', 'x2']) {
+      const c = CUR[id], p = st[id] * s, active = st.act === id;
+      g.fillStyle = c.color;
+      if (c.axis === 'y') g.fillRect(0, Math.round(p - lw / 2), W, lw);
+      else g.fillRect(Math.round(p - lw / 2), 0, lw, H);
+      // manija
+      const hx = c.axis === 'y' ? W * (id === 'y1' ? 0.62 : 0.80) : p;
+      const hy = c.axis === 'y' ? p : H * (id === 'x1' ? 0.36 : 0.46);
+      const r = 3.2 * s;
+      g.beginPath(); g.arc(hx, hy, r, 0, Math.PI * 2);
+      g.fillStyle = active ? c.color : '#fff'; g.fill();
+      g.lineWidth = Math.max(1, Math.round(k * 1.5)); g.strokeStyle = c.color; g.stroke();
+      g.fillStyle = active ? '#fff' : c.color;
+      g.font = `700 ${Math.round(2.6 * s)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(id[1], hx, hy + 0.1 * s);
+    }
+
+    const dy = Math.abs(st.y2 - st.y1), dx = Math.abs(st.x2 - st.x1);
+    $('#rdY').textContent = fmt(dy) + ' mm';
+    $('#rdX').textContent = fmt(dx) + ' mm';
+    $('#actLbl').textContent = 'Línea activa: ' + CUR[st.act].name;
+    $('#btnGrid').classList.toggle('on', st.grid);
+    $('#pRuler').classList.toggle('min', st.rMin);
+    $('#btnRulerMin').textContent = st.rMin ? '▴' : '▾';
+  }
+
+  function limitsMm() { const r = cvR.getBoundingClientRect(); return { x: r.width / ppmm, y: r.height / ppmm }; }
+  const clampCur = (id, v) => { const L = limitsMm(); return Math.min(Math.max(0, v), CUR[id].axis === 'y' ? L.y : L.x); };
+
+  let drag = null;
+  cvR.addEventListener('pointerdown', e => {
+    const p = localPt(cvR, e), mx = p.x / ppmm, my = p.y / ppmm;
+    let best = null, bd = 6;           // tolerancia de agarre: 6 mm
+    for (const id of ['y1', 'y2', 'x1', 'x2']) {
+      const d = Math.abs((CUR[id].axis === 'y' ? my : mx) - st[id]);
+      if (d < bd || (d === bd && id === st.act)) { bd = d; best = id; }
+    }
+    if (!best) return;
+    st.act = best;
+    drag = { id: best, off: st[best] - (CUR[best].axis === 'y' ? my : mx), pid: e.pointerId };
+    cvR.setPointerCapture(e.pointerId);
+    drawRuler();
+  });
+  cvR.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const p = localPt(cvR, e);
+    const v = (CUR[drag.id].axis === 'y' ? p.y : p.x) / ppmm + drag.off;
+    st[drag.id] = clampCur(drag.id, v);
+    schedule();
+  });
+  const endDrag = e => { if (drag && e.pointerId === drag.pid) { drag = null; saveSt(); } };
+  cvR.addEventListener('pointerup', endDrag);
+  cvR.addEventListener('pointercancel', endDrag);
+
+  $$('[data-nudge]').forEach(b => b.addEventListener('click', () => {
+    const id = st.act;
+    st[id] = clampCur(id, Math.round((st[id] + 0.1 * +b.dataset.nudge) * 10) / 10);
+    saveSt(); drawRuler();
+  }));
+  $('#btnGrid').addEventListener('click', () => { st.grid = !st.grid; saveSt(); drawRuler(); });
+  $('#btnZero').addEventListener('click', () => { st.y1 = 0; st.x1 = 0; st.act = 'y2'; saveSt(); drawRuler(); });
+  $('#btnReset').addEventListener('click', () => { Object.assign(st, { y1: 15, y2: 45, x1: 15, x2: 35, act: 'y2' }); saveSt(); drawRuler(); });
+  $('#btnRulerMin').addEventListener('click', () => { st.rMin = !st.rMin; saveSt(); drawRuler(); });
+
+  // =====================================================================
+  //  DIÁMETROS
+  // =====================================================================
+  const cvD = $('#cvDiam');
+  function diamCenter() {
+    const r = cvD.getBoundingClientRect(), pr = $('#pDiam').getBoundingClientRect();
+    const top = 56, bottom = Math.max(top + 40, pr.top - r.top - 8);
+    return { x: r.width / 2, y: (top + bottom) / 2, maxD: Math.min(r.width - 8, bottom - top) / ppmm };
+  }
+  function setD(v) {
+    const c = diamCenter();
+    st.d = Math.min(Math.max(0.5, Math.round(v * 10) / 10), Math.max(1, Math.floor(c.maxD * 10) / 10));
+    saveSt(); drawDiam();
+  }
+  function drawDiam() {
+    const { W, H, k } = fitCanvas(cvD);
+    const g = cvD.getContext('2d');
+    const c = diamCenter(), s = ppmm * k;
+    if (st.d > c.maxD) st.d = Math.max(1, Math.floor(c.maxD * 10) / 10);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    const cx = c.x * k, cy = c.y * k, R = st.d / 2 * s;
+    // ejes
+    g.fillStyle = '#e5e7eb';
+    g.fillRect(0, Math.round(cy), W, 1); g.fillRect(Math.round(cx), 0, 1, H);
+    // disco
+    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(254,191,44,.35)'; g.fill();
+    g.lineWidth = Math.max(1, Math.round(k * 0.6)); g.strokeStyle = '#1f2328'; g.stroke();
+    // marcas de diámetro
+    g.fillStyle = '#1f2328';
+    const t = 2 * s;
+    g.fillRect(Math.round(cx - R), Math.round(cy - t), 1, Math.round(2 * t));
+    g.fillRect(Math.round(cx + R), Math.round(cy - t), 1, Math.round(2 * t));
+    g.fillRect(Math.round(cx - 1.5 * s), Math.round(cy), Math.round(3 * s), 1);
+    g.fillRect(Math.round(cx), Math.round(cy - 1.5 * s), 1, Math.round(3 * s));
+    $('#rdD').textContent = 'Ø ' + fmt(st.d) + ' mm';
+    if (document.activeElement !== $('#inD')) $('#inD').value = st.d.toFixed(1);
+  }
+  let dDrag = null;
+  cvD.addEventListener('pointerdown', e => { dDrag = e.pointerId; cvD.setPointerCapture(e.pointerId); moveD(e); });
+  cvD.addEventListener('pointermove', e => { if (dDrag === e.pointerId) moveD(e); });
+  const endD = e => { if (dDrag === e.pointerId) dDrag = null; };
+  cvD.addEventListener('pointerup', endD); cvD.addEventListener('pointercancel', endD);
+  function moveD(e) {
+    const p = localPt(cvD, e), c = diamCenter();
+    setD(2 * Math.hypot(p.x - c.x, p.y - c.y) / ppmm);
+  }
+  $$('[data-dd]').forEach(b => b.addEventListener('click', () => setD(st.d + parseFloat(b.dataset.dd))));
+  $('#inD').addEventListener('change', e => { const v = parseNum(e.target.value); if (v > 0) setD(v); });
+
+  $$('[data-dmode]').forEach(b => b.addEventListener('click', () => { st.dmode = b.dataset.dmode; saveSt(); applyDMode(); }));
+  function applyDMode() {
+    $$('[data-dmode]').forEach(b => b.setAttribute('aria-selected', b.dataset.dmode === st.dmode));
+    $('#diamAdj').classList.toggle('hidden', st.dmode !== 'adj');
+    $('#gauge').classList.toggle('hidden', st.dmode !== 'gauge');
+    $('#gaugeSetWrap').classList.toggle('hidden', st.dmode !== 'gauge');
+    redraw();
+  }
+
+  const GSETS = {
+    fine: () => { const a = []; for (let d = 1; d <= 10.001; d += 0.5) a.push({ d: Math.round(d * 10) / 10 }); return a; },
+    mm: () => { const a = []; for (let d = 10; d <= 40; d++) a.push({ d }); return a; },
+    std: () => [
+      { d: 1.75, t: 'Filamento' }, { d: 2.85, t: 'Filamento' }, { d: 3, t: 'Filamento' },
+      { d: 2, t: 'M2' }, { d: 2.5, t: 'M2,5' }, { d: 3, t: 'M3' }, { d: 4, t: 'M4' }, { d: 5, t: 'M5' },
+      { d: 6, t: 'M6' }, { d: 8, t: 'M8' }, { d: 10, t: 'M10' }, { d: 12, t: 'M12' }, { d: 16, t: 'M16' }, { d: 20, t: 'M20' }
+    ]
+  };
+  let gaugeKey = '';
+  function buildGauge() {
+    $('#gaugeSet').value = st.gset;
+    const key = st.gset + '|' + ppmm + '|' + dpr();
+    if (key === gaugeKey) return;
+    gaugeKey = key;
+    const sw = 1 / dpr();
+    const items = GSETS[st.gset]();
+    $('#gaugeGrid').innerHTML = items.map(it => {
+      const D = it.d * ppmm, size = D + 2;
+      const lbl = (it.t ? it.t + ' · ' : '') + 'Ø ' + (Number.isInteger(it.d) ? it.d : String(it.d).replace('.', ','));
+      return `<figure tabindex="0"><svg width="${size.toFixed(3)}" height="${size.toFixed(3)}" viewBox="0 0 ${size.toFixed(3)} ${size.toFixed(3)}" aria-hidden="true">` +
+        `<circle cx="${(size / 2).toFixed(3)}" cy="${(size / 2).toFixed(3)}" r="${(D / 2).toFixed(3)}" fill="rgba(254,191,44,.35)" stroke="#1f2328" stroke-width="${sw}"/></svg>` +
+        `<figcaption>${lbl}</figcaption></figure>`;
+    }).join('');
+  }
+  $('#gaugeSet').addEventListener('change', e => { st.gset = e.target.value; saveSt(); buildGauge(); });
+  $('#gaugeGrid').addEventListener('click', e => {
+    const f = e.target.closest('figure'); if (!f) return;
+    const was = f.classList.contains('sel');
+    $$('#gaugeGrid figure.sel').forEach(x => x.classList.remove('sel'));
+    if (!was) f.classList.add('sel');
+  });
+
+  // =====================================================================
+  //  CALIBRACIÓN
+  // =====================================================================
+  const cvC = $('#cvCal');
+  const REFS = {
+    card_s: { L: 53.98, kind: 'card' }, card_l: { L: 85.60, kind: 'card' },
+    r50: { L: 50, kind: 'ruler' }, r80: { L: 80, kind: 'ruler' }, r100: { L: 100, kind: 'ruler' }, custom: { L: null, kind: 'custom' }
+  };
+  const cs = { ref: 'card_s', ppmm: ppmm, custom: 60, min: false, touched: false };
+  const TOP_CSS = 28;           // posición de la línea A (px CSS desde arriba)
+
+  const refL = () => cs.ref === 'custom' ? Math.max(5, parseNum($('#calCustom').value) || 60) : REFS[cs.ref].L;
+
+  function openCal() {
+    cs.ppmm = ppmm;
+    if (cal && cal.ref && REFS[cal.ref]) cs.ref = cal.ref;
+    $('#calRef').value = cs.ref;
+    calHelp();
+  }
+  function calHelp() {
+    cs.touched = false; cs.min = false;
+    const L = refL(), r = REFS[cs.ref];
+    $('#calCustomWrap').classList.toggle('hidden', cs.ref !== 'custom');
+    let t;
+    if (r.kind === 'card') t = `Apoyá una tarjeta de formato estándar (crédito, débito, DNI tarjeta: 85,60 × 53,98 mm) con un borde sobre la línea A. Ajustá hasta que la línea B coincida justo con el borde opuesto (${fmt(L, 2)} mm).`;
+    else if (r.kind === 'ruler') t = `Apoyá una regla real con el 0 sobre la línea A. Ajustá hasta que la línea B coincida con la marca de ${fmt(L, 0)} mm.`;
+    else t = 'Apoyá un objeto de medida conocida con un borde en la línea A y ajustá la línea B hasta el borde opuesto.';
+    t += ' Mirá desde arriba, bien perpendicular a la pantalla. Cuanto más larga la referencia, más precisa la calibración.';
+    $('#calHelp').textContent = t;
+  }
+  function drawCal() {
+    const { W, H, k } = fitCanvas(cvC);
+    const g = cvC.getContext('2d');
+    const L = refL(), s = cs.ppmm * k;
+    const yA = TOP_CSS * k, yB = yA + L * s;
+    const panelTop = ($('#pCal').getBoundingClientRect().top - cvC.getBoundingClientRect().top) * k;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(254,191,44,.28)'; g.fillRect(0, Math.round(yA), W, Math.round(yB) - Math.round(yA));
+    const lw = Math.max(1, Math.round(k * 0.75));
+    g.fillStyle = '#d9480f';
+    g.fillRect(0, Math.round(yA - lw / 2), W, lw);
+    g.fillRect(0, Math.round(yB - lw / 2), W, lw);
+    // rótulos y cota
+    g.font = `700 ${Math.round(13 * k)}px system-ui, sans-serif`; g.textBaseline = 'bottom'; g.textAlign = 'left';
+    g.fillText('A', 8 * k, yA - 4 * k);
+    g.textBaseline = 'top'; g.fillText('B', 8 * k, yB + 4 * k);
+    const ax = W * 0.5;
+    g.fillStyle = '#1f2328';
+    g.fillRect(Math.round(ax), Math.round(yA), Math.max(1, Math.round(k)), Math.round(yB - yA));
+    const ah = 7 * k;
+    g.beginPath(); g.moveTo(ax, yA); g.lineTo(ax - ah * 0.6, yA + ah); g.lineTo(ax + ah * 0.6, yA + ah); g.fill();
+    g.beginPath(); g.moveTo(ax, yB); g.lineTo(ax - ah * 0.6, yB - ah); g.lineTo(ax + ah * 0.6, yB - ah); g.fill();
+    const my = Math.min((yA + yB) / 2, Math.max(yA + 30 * k, panelTop - 30 * k));
+    const label = fmt(L, 2) + ' mm';
+    g.font = `700 ${Math.round(15 * k)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const tw = g.measureText(label).width + 14 * k;
+    g.fillStyle = '#fff'; g.fillRect(ax - tw / 2, my - 13 * k, tw, 26 * k);
+    g.fillStyle = '#1f2328'; g.fillText(label, ax, my);
+    if (yB > panelTop && !cs.min && !cs.touched) { cs.min = true; schedule(); return; }
+    if (yB > panelTop) {
+      g.font = `600 ${Math.round(12 * k)}px system-ui, sans-serif`; g.fillStyle = '#d9480f';
+      g.fillText('Línea B tapada: elegí una referencia más corta', W / 2, Math.min(panelTop - 12 * k, H - 12 * k));
+    }
+
+    $('#calVal').textContent = fmt(L * cs.ppmm, 1) + ' px';
+    const physPpi = cs.ppmm * k * 25.4;
+    $('#calInfo').textContent = `Escala: ${fmt(cs.ppmm, 3)} px/mm · pantalla ≈ ${Math.round(physPpi)} ppp · 1 píxel físico ≈ ${fmt(1 / (cs.ppmm * k), 3)} mm` +
+      (cal ? ` · Última calibración: ${new Date(cal.date).toLocaleDateString('es-AR')}` : ' · Todavía sin calibrar');
+    $('#pCal').classList.toggle('min', cs.min);
+    $('#btnCalMin').textContent = cs.min ? '▴' : '▾';
+  }
+  $('#calRef').addEventListener('change', e => { cs.ref = e.target.value; calHelp(); drawCal(); });
+  $('#calCustom').addEventListener('input', () => { calHelp(); drawCal(); });
+  $$('[data-cal]').forEach(b => b.addEventListener('click', () => {
+    const L = refL(), stepCss = +b.dataset.cal / dpr();        // pasos de 1 píxel físico
+    cs.ppmm = Math.min(30, Math.max(1.5, (L * cs.ppmm + stepCss) / L));
+    drawCal();
+  }));
+  let cDrag = null;
+  cvC.addEventListener('pointerdown', e => {
+    cDrag = { pid: e.pointerId, y0: localPt(cvC, e).y, p0: cs.ppmm };
+    cvC.setPointerCapture(e.pointerId);
+  });
+  cvC.addEventListener('pointermove', e => {
+    if (!cDrag || cDrag.pid !== e.pointerId) return;
+    const L = refL(), dy = localPt(cvC, e).y - cDrag.y0;
+    cs.ppmm = Math.min(30, Math.max(1.5, (L * cDrag.p0 + dy) / L));
+    schedule();
+  });
+  const endC = e => { if (cDrag && cDrag.pid === e.pointerId) cDrag = null; };
+  cvC.addEventListener('pointerup', endC); cvC.addEventListener('pointercancel', endC);
+  $('#btnCalMin').addEventListener('click', () => { cs.min = !cs.min; cs.touched = true; drawCal(); });
+  $('#btnCalEst').addEventListener('click', () => {
+    const inch = parseNum($('#calIn').value);
+    if (!(inch > 2 && inch < 20)) { $('#calIn').focus(); return; }
+    cs.ppmm = Math.hypot(screen.width, screen.height) / (inch * 25.4);
+    drawCal();
+  });
+  $('#btnCalCancel').addEventListener('click', () => show('regla'));
+  $('#btnCalSave').addEventListener('click', () => {
+    const sig = screenSig();
+    cal = { ppmm: cs.ppmm, dpr: sig.dpr, s: sig.s, ref: cs.ref, date: Date.now() };
+    LS.set(KEY_CAL, cal);
+    ppmm = cs.ppmm; gaugeKey = '';
+    show('regla');
+  });
+
+  // ---------- inicio ----------
+  applyDMode();
+  show(calStatus() === 'none' ? 'cal' : 'regla');
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
